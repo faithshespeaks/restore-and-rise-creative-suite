@@ -81,6 +81,19 @@
 
   .empty-state { text-align: center; color: #9a968f; padding: 60px 20px; font-style: italic; }
   #source-status { font-size: 0.85rem; color: #6E6E6E; margin-top: 6px; }
+
+  #image-modal {
+    display: none; position: fixed; inset: 0; background: rgba(44,42,40,0.6);
+    z-index: 100; align-items: center; justify-content: center; padding: 24px;
+  }
+  #image-modal-inner {
+    background: var(--cream); border-radius: 10px; padding: 24px; max-width: 900px;
+    max-height: 85vh; overflow-y: auto; width: 100%;
+  }
+  #image-modal-inner .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  #image-modal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .image-modal-item { text-align: center; }
+  .image-modal-item img { width: 100%; border-radius: 6px; border: 1px solid var(--line); margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -132,6 +145,16 @@
     <h2>Approval Queue</h2>
     <div class="queue-filter" id="queue-filter"></div>
     <div id="queue-list"></div>
+  </div>
+</div>
+
+<div id="image-modal">
+  <div id="image-modal-inner">
+    <div class="modal-head">
+      <h2 style="margin:0;">Generated Images</h2>
+      <button class="btn secondary small" onclick="closeImageModal()">Close</button>
+    </div>
+    <div id="image-modal-grid"></div>
   </div>
 </div>
 
@@ -329,6 +352,7 @@ async function transcribeForRahab() {
     statusEl.textContent = 'Error: ' + err.message;
   }
 }
+
 function pollForRahab(id) {
   const statusEl = document.getElementById('source-status');
   const interval = setInterval(async () => {
@@ -450,6 +474,7 @@ function renderQueue() {
         <button class="btn small" data-action="approve">Approve</button>
         <button class="btn secondary small" data-action="copy">Copy</button>
         <button class="btn secondary small" data-action="remove">Remove</button>
+        ${(item.format === '5 Quote Graphics' || item.format === 'Instagram Carousel') ? '<button class="btn secondary small" data-action="images">Generate Images</button>' : ''}
       </div>
     `;
     const textarea = div.querySelector('textarea');
@@ -470,9 +495,164 @@ function renderQueue() {
       saveQueue();
       renderQueue();
     };
+    const imagesBtn = div.querySelector('[data-action="images"]');
+    if (imagesBtn) {
+      imagesBtn.onclick = () => openImageModal(item);
+    }
     list.appendChild(div);
   });
 }
+
+/* ============================================================
+   IMAGE GENERATOR — turns Rahab's quote/carousel TEXT into real
+   branded PNG images, rendered with Canvas, no external service.
+   ============================================================ */
+const BRAND = { cream: '#FAF6F0', forest: '#2C4232', gold: '#C9A227', rose: '#C9A0A8' };
+let fontsReady = null;
+function ensureFontsLoaded() {
+  if (!fontsReady) {
+    fontsReady = Promise.all([
+      document.fonts.load('700 48px "Cormorant Garamond"'),
+      document.fonts.load('400 28px "Inter"'),
+    ]);
+  }
+  return fontsReady;
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  const lines = [];
+  words.forEach((word) => {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  });
+  if (line) lines.push(line);
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lineHeight));
+  return lines.length;
+}
+
+// Parse "1. "quote text"" style output from the 5 Quote Graphics format
+function parseQuotes(text) {
+  const matches = [...text.matchAll(/\d+\.\s*"([^"]+)"/g)].map((m) => m[1]);
+  if (matches.length > 0) return matches;
+  // Fallback: split on --- dividers and strip numbering/quotes
+  return text.split('---').map((chunk) => chunk.replace(/^\s*\d+\.\s*/, '').replace(/"/g, '').trim()).filter(Boolean);
+}
+
+// Parse "SLIDE [N]: [title] / [body]" style output from Instagram Carousel
+function parseSlides(text) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const slides = [];
+  lines.forEach((line) => {
+    const match = line.match(/SLIDE\s*\[?(\d+)\]?\s*:\s*(.*?)\s*\/\s*(.*)/i);
+    if (match) {
+      slides.push({ number: match[1], title: match[2], body: match[3] });
+    }
+  });
+  return slides;
+}
+
+async function renderQuoteCanvas(quoteText) {
+  await ensureFontsLoaded();
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = BRAND.cream;
+  ctx.fillRect(0, 0, 1080, 1080);
+  ctx.strokeStyle = BRAND.gold;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(60, 60, 960, 960);
+  ctx.fillStyle = BRAND.forest;
+  ctx.textAlign = 'center';
+  ctx.font = '600 64px "Cormorant Garamond", serif';
+  wrapText(ctx, `"${quoteText}"`, 540, 500, 780, 78);
+  ctx.fillStyle = BRAND.gold;
+  ctx.font = '600 30px "Cormorant Garamond", serif';
+  ctx.fillText('RESTORE & RISE', 540, 960);
+  return canvas;
+}
+
+async function renderSlideCanvas(slide) {
+  await ensureFontsLoaded();
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = BRAND.cream;
+  ctx.fillRect(0, 0, 1080, 1350);
+  ctx.fillStyle = BRAND.gold;
+  ctx.textAlign = 'center';
+  ctx.font = '600 32px "Inter", sans-serif';
+  ctx.fillText(`SLIDE ${slide.number}`, 540, 140);
+  ctx.strokeStyle = BRAND.gold;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(440, 175);
+  ctx.lineTo(640, 175);
+  ctx.stroke();
+  ctx.fillStyle = BRAND.forest;
+  ctx.font = '700 56px "Cormorant Garamond", serif';
+  wrapText(ctx, slide.title, 540, 320, 860, 66);
+  ctx.font = '400 34px "Inter", sans-serif';
+  wrapText(ctx, slide.body, 540, 700, 820, 48);
+  ctx.fillStyle = BRAND.gold;
+  ctx.font = '600 26px "Cormorant Garamond", serif';
+  ctx.fillText('RESTORE & RISE', 540, 1260);
+  return canvas;
+}
+
+async function openImageModal(item) {
+  const modal = document.getElementById('image-modal');
+  const grid = document.getElementById('image-modal-grid');
+  grid.innerHTML = '<p>Rendering images...</p>';
+  modal.style.display = 'flex';
+
+  let canvases = [];
+  if (item.format === '5 Quote Graphics') {
+    const quotes = parseQuotes(item.content);
+    canvases = await Promise.all(quotes.map((q) => renderQuoteCanvas(q)));
+  } else if (item.format === 'Instagram Carousel') {
+    const slides = parseSlides(item.content);
+    canvases = await Promise.all(slides.map((s) => renderSlideCanvas(s)));
+  }
+
+  grid.innerHTML = '';
+  if (canvases.length === 0) {
+    grid.innerHTML = '<p>Could not find any quotes or slides in this text to render. You can still edit the text in the queue and try again.</p>';
+    return;
+  }
+  canvases.forEach((canvas, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'image-modal-item';
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'btn small';
+    downloadBtn.textContent = 'Download';
+    downloadBtn.onclick = () => {
+      const link = document.createElement('a');
+      link.download = `${item.format.replace(/\s+/g, '-').toLowerCase()}-${i + 1}.png`;
+      link.href = img.src;
+      link.click();
+    };
+    wrapper.appendChild(img);
+    wrapper.appendChild(downloadBtn);
+    grid.appendChild(wrapper);
+  });
+}
+
+function closeImageModal() {
+  document.getElementById('image-modal').style.display = 'none';
+}
 </script>
 </body>
+
 </html>
