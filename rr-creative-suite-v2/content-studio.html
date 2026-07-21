@@ -327,8 +327,8 @@ async function transcribeForRahab() {
     pollForRahab(transcriptId);
   } catch (err) {
     statusEl.textContent = 'Error: ' + err.message;
+  }
 }
-
 function pollForRahab(id) {
   const statusEl = document.getElementById('source-status');
   const interval = setInterval(async () => {
