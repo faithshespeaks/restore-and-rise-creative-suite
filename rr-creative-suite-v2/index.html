@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Restore &amp; Rise — Creative Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FAF6F0;
+    --forest: #2C4232;
+    --rose: #C9A0A8;
+    --mauve: #B07A8A;
+    --gold: #C9A227;
+    --ink: #2C2A28;
+    --line: #E7DED3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, .display {
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--forest);
+  }
+  /* ---------- Login gate ---------- */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px;
+    text-align: center;
+  }
+  #login-screen h1 { font-size: 2.4rem; margin-bottom: 0; }
+  #login-screen p { color: #6E6E6E; margin-top: 0; }
+  #login-screen input {
+    font-family: 'Inter', sans-serif;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    width: 280px;
+    font-size: 1rem;
+  }
+  #login-screen button, .btn {
+    font-family: 'Inter', sans-serif;
+    background: var(--forest);
+    color: var(--cream);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  #login-screen button:hover, .btn:hover { background: #23342a; }
+  #login-error { color: #A33; font-size: 0.9rem; min-height: 1.2em; }
+
+  /* ---------- App shell ---------- */
+  #app { display: none; }
+  header.top {
+    border-bottom: 3px solid var(--gold);
+    padding: 22px 32px;
+    text-align: center;
+    background: var(--cream);
+  }
+  header.top h1 { margin: 0; font-size: 1.9rem; }
+  header.top p { margin: 4px 0 0; color: #6E6E6E; font-style: italic; font-size: 0.95rem; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  #agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 18px;
+    margin-top: 24px;
+  }
+  .agent-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .agent-card:hover { box-shadow: 0 6px 18px rgba(44,66,50,0.12); transform: translateY(-2px); }
+  .agent-card h3 { margin: 0 0 8px; font-size: 1.3rem; }
+  .agent-card p { margin: 0; font-size: 0.9rem; color: #55524D; }
+  .agent-card .tag {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: var(--mauve);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---------- Agent panel ---------- */
+  #agent-panel {
+    display: none;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  #agent-panel .panel-header {
+    background: var(--forest);
+    color: var(--cream);
+    padding: 16px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #agent-panel .panel-header h2 { color: var(--cream); margin: 0; font-size: 1.4rem; }
+  #agent-panel .panel-header button {
+    background: transparent;
+    border: 1px solid var(--cream);
+    color: var(--cream);
+    border-radius: 5px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  #chat-log { padding: 20px 22px; max-height: 420px; overflow-y: auto; }
+  .msg { margin-bottom: 16px; line-height: 1.5; }
+  .msg.user { text-align: right; }
+  .msg .bubble {
+    display: inline-block;
+    padding: 10px 16px;
+    border-radius: 10px;
+    max-width: 80%;
+    white-space: pre-wrap;
+    text-align: left;
+  }
+  .msg.user .bubble { background: var(--rose); color: #fff; }
+  .msg.agent .bubble { background: #F5F0E9; color: var(--ink); }
+  #chat-input-row {
+    display: flex;
+    gap: 10px;
+    padding: 16px 22px;
+    border-top: 1px solid var(--line);
+  }
+  #chat-input-row textarea {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    resize: vertical;
+    min-height: 44px;
+  }
+
+  /* ---------- Audio upload block ---------- */
+  #audio-block {
+    margin: 0 22px 20px;
+    padding: 16px;
+    background: #F7EEEF;
+    border-radius: 8px;
+  }
+  #audio-block label { font-size: 0.85rem; color: var(--forest); font-weight: 600; display: block; margin-bottom: 8px; }
+  #audio-status { font-size: 0.85rem; color: #6E6E6E; margin-top: 8px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-screen">
+  <h1 class="display">Restore &amp; Rise</h1>
+  <p>Creative Suite — internal team access only</p>
+  <input type="password" id="password-input" placeholder="Enter access password" />
+  <button onclick="attemptLogin()">Enter</button>
+  <div id="login-error"></div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header class="top">
+    <h1 class="display">Restore &amp; Rise — Creative Suite</h1>
+    <p>Content team tools for Faith She Speaks Global Ministry</p>
+  </header>
+
+  <main>
+    <h2>Your Creative Team</h2>
+    <div id="agent-grid"></div>
+
+    <div id="agent-panel">
+      <div class="panel-header">
+        <h2 id="panel-title">Agent</h2>
+        <button onclick="closePanel()">Close</button>
+      </div>
+
+      <!-- Only shown for the Audio Repurposing Agent -->
+      <div id="audio-block" class="hidden">
+        <label>Upload audio (podcast episode, sermon clip, or voice note)</label>
+        <input type="file" id="audio-file" accept="audio/*" />
+        <button class="btn" style="margin-left:10px" onclick="transcribeAudio()">Transcribe</button>
+        <div id="audio-status"></div>
+      </div>
+
+      <div id="chat-log"></div>
+      <div id="chat-input-row">
+        <textarea id="chat-input" placeholder="Type here..."></textarea>
+        <button class="btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   ACCESS — change this password before sharing the link with
+   your team. For stronger protection later, move this check
+   into a Netlify function instead of client-side JS.
+   ============================================================ */
+const ACCESS_PASSWORD = "RestoreCreative2026";
+
+function attemptLogin() {
+  const val = document.getElementById("password-input").value;
+  if (val === ACCESS_PASSWORD) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  } else {
+    document.getElementById("login-error").textContent = "That password is not correct.";
+  }
+}
+document.getElementById("password-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") attemptLogin();
+});
+
+/* ============================================================
+   BRAND VOICE — appended to every agent's system prompt so all
+   output follows Restore & Rise's standing content rules.
+   ============================================================ */
+const BRAND_VOICE = `
+Standing content rules for Restore & Rise / Faith She Speaks:
+- Never use the words "hustle" or "grind."
+- Do not use contractions anywhere — write every word in full (do not, cannot, you are, we will, it is).
+- Use American English spelling throughout (favor, honor, color — never British spellings).
+- Marketing copy, captions, and CTAs must always read as a warm, open invitation — never salesy, pushy, or urgent.
+- If the content includes any prayer, it must open with "Lord Jesus," never just "Jesus."
+- Never discuss or mention specific program pricing in any content you generate here.
+- The voice throughout is "Lady T" — warm, faith-forward, encouraging.
+`;
+
+/* ============================================================
+   AGENTS
+   ============================================================ */
+const AGENTS = [
+  {
+    id: "content-studio",
+    title: "Content Studio — Rahab & Zilpah",
+    tag: "Repurpose + Approve",
+    description: "Repurpose any source (text, transcript, or uploaded audio) into 15+ formats across Instagram, Video, Written, and Other categories, then review and approve everything in one shared queue.",
+    isExternalLink: "content-studio.html",
+  },
+  {
+    id: "strategist",
+    title: "Content Strategist",
+    tag: "Planning",
+    description: "Builds the content calendar and ties monthly themes to the Quarterly Workshop cycle.",
+    systemPrompt: `You are the Content Strategist for Restore & Rise, a faith-based coaching platform. You help plan content calendars, tie social themes to the current Quarterly Workshop theme or podcast season, and suggest a realistic weekly posting rhythm. Keep suggestions practical and grounded, not overwhelming for a small team.` + BRAND_VOICE,
+  },
+  {
+    id: "social",
+    title: "Social Media Manager",
+    tag: "Scheduling + Rhythm",
+    description: "Plans posting rhythm, cross-platform adaptation, and engagement follow-up.",
+    systemPrompt: `You are the Social Media Manager for Restore & Rise. You help decide what to post where (Instagram, Facebook, the ManyChat-connected channels), how to adapt one piece of content across platforms, and how to respond to comments and DMs in the brand voice. You are practical about what a small team can sustain.` + BRAND_VOICE,
+  },
+];
+
+let currentAgent = null;
+let chatHistory = [];
+
+function renderAgentGrid() {
+  const grid = document.getElementById("agent-grid");
+  grid.innerHTML = "";
+  AGENTS.forEach((agent) => {
+    const card = document.createElement("div");
+    card.className = "agent-card";
+    card.innerHTML = `<h3>${agent.title}</h3><p>${agent.description}</p><span class="tag">${agent.tag}</span>`;
+    card.onclick = () => {
+      if (agent.isExternalLink) {
+        window.location.href = agent.isExternalLink;
+      } else {
+        openPanel(agent);
+      }
+    };
+    grid.appendChild(card);
+  });
+}
+renderAgentGrid();
+
+function openPanel(agent) {
+  currentAgent = agent;
+  chatHistory = [];
+  document.getElementById("panel-title").textContent = agent.title;
+  document.getElementById("chat-log").innerHTML = "";
+  document.getElementById("audio-block").classList.toggle("hidden", !agent.hasAudioUpload);
+  document.getElementById("audio-status").textContent = "";
+  document.getElementById("agent-panel").style.display = "block";
+  document.getElementById("agent-panel").scrollIntoView({ behavior: "smooth" });
+}
+
+function closePanel() {
+  document.getElementById("agent-panel").style.display = "none";
+  currentAgent = null;
+}
+
+function appendMessage(role, text) {
+  const log = document.getElementById("chat-log");
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "agent");
+  div.innerHTML = `<div class="bubble"></div>`;
+  div.querySelector(".bubble").textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById("chat-input");
+  const text = input.value.trim();
+  if (!text || !currentAgent) return;
+  input.value = "";
+  appendMessage("user", text);
+  chatHistory.push({ role: "user", content: text });
+  appendMessage("agent", "Thinking...");
+
+  try {
+    const res = await fetch("/.netlify/functions/anthropic-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemPrompt: currentAgent.systemPrompt,
+        messages: chatHistory,
+      }),
+    });
+    const data = await res.json();
+    document.querySelector("#chat-log .msg.agent:last-child .bubble").textContent =
+      data.text || ("Error: " + (data.error || "no response"));
+    chatHistory.push({ role: "assistant", content: data.text || "" });
+  } catch (err) {
+    document.querySelector("#chat-log .msg.agent:last-child .bubble").textContent = "Error: " + err.message;
+  }
+}
+
+/* ============================================================
+   AUDIO TRANSCRIPTION PIPELINE (Audio Repurposing Agent only)
+   ============================================================ */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function transcribeAudio() {
+  const fileInput = document.getElementById("audio-file");
+  const statusEl = document.getElementById("audio-status");
+  const file = fileInput.files[0];
+  if (!file) {
+    statusEl.textContent = "Choose an audio file first.";
+    return;
+  }
+
+  statusEl.textContent = "Uploading and starting transcription...";
+  try {
+    const base64 = await fileToBase64(file);
+    const startRes = await fetch("/.netlify/functions/transcribe-start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audioBase64: base64 }),
+    });
+    const startData = await startRes.json();
+    if (!startRes.ok) throw new Error(startData.error || "Could not start transcription.");
+
+    statusEl.textContent = "Transcribing... this can take a few minutes for longer audio.";
+    pollTranscript(startData.id);
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+  }
+}
+
+function pollTranscript(id) {
+  const statusEl = document.getElementById("audio-status");
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`/.netlify/functions/transcribe-status?id=${id}`);
+      const data = await res.json();
+      if (data.status === "completed") {
+        clearInterval(interval);
+        statusEl.textContent = "Transcription complete. Sending to the Audio Repurposing Agent...";
+        const transcript = data.text;
+        appendMessage("user", "[Uploaded audio transcript]\n\n" + transcript);
+        chatHistory.push({
+          role: "user",
+          content: "Here is the transcript of the uploaded audio:\n\n" + transcript,
+        });
+        appendMessage("agent", "Thinking...");
+        const proxyRes = await fetch("/.netlify/functions/anthropic-proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ systemPrompt: currentAgent.systemPrompt, messages: chatHistory }),
+        });
+        const proxyData = await proxyRes.json();
+        document.querySelector("#chat-log .msg.agent:last-child .bubble").textContent =
+          proxyData.text || ("Error: " + (proxyData.error || "no response"));
+        chatHistory.push({ role: "assistant", content: proxyData.text || "" });
+        statusEl.textContent = "Done. Transcript repurposed below.";
+      } else if (data.status === "error") {
+        clearInterval(interval);
+        statusEl.textContent = "Transcription failed: " + data.error;
+      } else {
+        statusEl.textContent = "Status: " + data.status + "...";
+      }
+    } catch (err) {
+      clearInterval(interval);
+      statusEl.textContent = "Error checking status: " + err.message;
+    }
+  }, 4000);
+}
+</script>
+</body>
+</html>

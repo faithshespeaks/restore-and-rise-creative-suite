@@ -1,0 +1,9 @@
+{
+  "name": "restore-and-rise-creative-suite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Internal Creative Suite for Restore & Rise — content agents and audio-to-content pipeline.",
+  "engines": {
+    "node": ">=18"
+  }
+}

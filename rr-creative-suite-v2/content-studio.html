@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Content Studio — Restore & Rise Creative Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FAF6F0; --forest: #2C4232; --rose: #C9A0A8;
+    --mauve: #B07A8A; --gold: #C9A227; --ink: #2C2A28; --line: #E7DED3;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--cream); color: var(--ink); font-family: 'Inter', sans-serif; }
+  h1, h2, h3 { font-family: 'Cormorant Garamond', serif; color: var(--forest); }
+  header.top {
+    border-bottom: 3px solid var(--gold); padding: 18px 28px;
+    display: flex; justify-content: space-between; align-items: center; background: var(--cream);
+  }
+  header.top h1 { margin: 0; font-size: 1.6rem; }
+  header.top a { color: var(--forest); text-decoration: none; font-size: 0.9rem; border: 1px solid var(--forest); padding: 8px 14px; border-radius: 6px; }
+
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); background: #fff; }
+  .tab-btn {
+    flex: 1; padding: 16px; text-align: center; cursor: pointer; font-weight: 600;
+    color: #8a8680; background: #F5F0E9; border: none; font-family: 'Inter', sans-serif; font-size: 0.95rem;
+  }
+  .tab-btn.active { background: var(--forest); color: var(--cream); }
+
+  .layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 0; min-height: calc(100vh - 130px); }
+  .left, .right { padding: 24px; }
+  .left { border-right: 1px solid var(--line); }
+
+  label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--forest); margin: 14px 0 6px; }
+  select, textarea, input[type=file] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px;
+    font-family: 'Inter', sans-serif; font-size: 0.92rem;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+
+  .format-groups { margin-top: 16px; }
+  .format-group { margin-bottom: 14px; }
+  .format-group h4 { margin: 0 0 8px; font-size: 0.9rem; color: var(--mauve); text-transform: uppercase; letter-spacing: 0.05em; }
+  .format-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .format-chip {
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 0.85rem;
+    cursor: pointer; background: #fff; user-select: none;
+  }
+  .format-chip.selected { background: var(--rose); color: #fff; border-color: var(--rose); }
+
+  .btn {
+    background: var(--forest); color: var(--cream); border: none; padding: 11px 20px;
+    border-radius: 6px; font-size: 0.92rem; cursor: pointer; font-family: 'Inter', sans-serif; margin-top: 16px;
+  }
+  .btn:hover { background: #23342a; }
+  .btn.secondary { background: transparent; color: var(--forest); border: 1px solid var(--forest); }
+  .btn.small { padding: 6px 12px; font-size: 0.8rem; margin-top: 0; }
+
+  .result-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 14px;
+  }
+  .result-card .rc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .result-card .rc-head strong { color: var(--forest); }
+  .result-card pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; font-size: 0.9rem; margin: 0; }
+
+  .queue-filter { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .queue-filter button {
+    border: 1px solid var(--line); background: #fff; padding: 6px 12px; border-radius: 14px;
+    font-size: 0.8rem; cursor: pointer;
+  }
+  .queue-filter button.active { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+  .queue-item { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .queue-item .qi-tags { font-size: 0.75rem; color: var(--mauve); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .queue-item textarea { min-height: 90px; margin-top: 8px; }
+  .queue-item .qi-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .status-pill { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; }
+  .status-pending { background: #F7EEEF; color: var(--mauve); }
+  .status-approved { background: #E4EDE7; color: var(--forest); }
+
+  .empty-state { text-align: center; color: #9a968f; padding: 60px 20px; font-style: italic; }
+  #source-status { font-size: 0.85rem; color: #6E6E6E; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Content Studio — Rahab &amp; Zilpah</h1>
+  <a href="index.html">&larr; Back to Creative Suite</a>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab-rahab" onclick="switchTab('rahab')">Rahab — Repurpose Content</button>
+  <button class="tab-btn" id="tab-zilpah" onclick="switchTab('zilpah')">Zilpah — Approval Queue</button>
+</div>
+
+<div class="layout">
+  <!-- ================= LEFT: RAHAB ================= -->
+  <div class="left" id="panel-rahab">
+    <h2>Source Content</h2>
+    <label>Where is this content coming from?</label>
+    <select id="source-type" onchange="onSourceTypeChange()">
+      <option value="text">Paste text or transcript</option>
+      <option value="audio">Upload audio (podcast, sermon, voice note)</option>
+    </select>
+
+    <div id="text-source">
+      <label>Paste the content, transcript, or notes to repurpose</label>
+      <textarea id="source-text" placeholder="Paste a podcast transcript, sermon notes, or any source content here..."></textarea>
+    </div>
+
+    <div id="audio-source" style="display:none;">
+      <label>Upload audio file</label>
+      <input type="file" id="audio-file" accept="audio/*" />
+      <button class="btn secondary small" style="margin-top:10px" onclick="transcribeForRahab()">Transcribe</button>
+      <div id="source-status"></div>
+    </div>
+
+    <h2 style="margin-top:24px;">Choose Formats</h2>
+    <p style="font-size:0.85rem;color:#6E6E6E;">Select one or more. Each runs in parallel.</p>
+    <div class="format-groups" id="format-groups"></div>
+
+    <button class="btn" onclick="generateSelected()">Generate Selected Formats</button>
+    <button class="btn secondary" onclick="selectAllFormats()">Select All</button>
+
+    <div id="rahab-results" style="margin-top:24px;"></div>
+  </div>
+
+  <!-- ================= RIGHT: ZILPAH ================= -->
+  <div class="right" id="panel-zilpah" style="display:none;">
+    <h2>Approval Queue</h2>
+    <div class="queue-filter" id="queue-filter"></div>
+    <div id="queue-list"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   BRAND VOICE — same standing rules as the rest of the Creative Suite
+   ============================================================ */
+const BRAND_VOICE = `
+Standing content rules for Restore & Rise / Faith She Speaks:
+- Never use the words "hustle" or "grind."
+- Do not use contractions anywhere — write every word in full.
+- Use American English spelling throughout.
+- Read as a warm, open invitation — never salesy, pushy, or urgent.
+- If content includes any prayer, it must open with "Lord Jesus," never just "Jesus."
+- Never mention specific program pricing.
+- Voice is "Lady T" — use "sister" or "woman of God," never appearance-based greetings.
+`;
+
+/* ============================================================
+   FORMAT MAP — 15 formats recovered verbatim from a prior build.
+   The original build referenced about 18 formats across 4
+   categories; if you recall the remaining 2-3, add them here
+   following the same pattern.
+   ============================================================ */
+const FORMAT_MAP = {
+  'ig-long':     { name: 'Instagram Long-Form Caption', group: 'Instagram' },
+  'ig-short':    { name: 'Instagram Short Caption',      group: 'Instagram' },
+  'ig-carousel': { name: 'Instagram Carousel',           group: 'Instagram' },
+  'ig-story':    { name: 'Story Frames',                 group: 'Instagram' },
+  'ig-hooks':    { name: '3 Reel Hooks',                 group: 'Instagram' },
+  'reel':        { name: 'Full Reel Script',             group: 'Video' },
+  'tiktok':      { name: 'TikTok Script',                group: 'Video' },
+  'live-pts':    { name: 'Live Session Talking Points',  group: 'Video' },
+  'email':       { name: 'Email Newsletter Intro',       group: 'Written' },
+  'blog':        { name: 'Blog Post / Article',          group: 'Written' },
+  'quotes':      { name: '5 Quote Graphics',              group: 'Written' },
+  'thread':      { name: 'Twitter / X Thread',            group: 'Written' },
+  'fb':          { name: 'Facebook Post',                 group: 'Other' },
+  'linkedin':    { name: 'LinkedIn Post',                 group: 'Other' },
+  'hashtags':    { name: 'Hashtag Set',                   group: 'Other' },
+};
+
+// Prompts marked "(recovered)" came verbatim from the real build found in
+// past sessions. Prompts marked "(reconstructed)" were cut off in what was
+// recovered, so they were rewritten here to match the same style — review
+// these against your memory of the original and adjust if anything is off.
+const FORMAT_PROMPTS = {
+  'ig-long': `Write a long-form Instagram caption with a strong hook, teaching middle, and warm CTA. 150-250 words. Lady T's voice. Use "sister" or "woman of God." No pricing. No "hustle" or "grind".`, // recovered
+  'ig-short': `Write a short punchy Instagram caption — 3 to 5 lines. Hook, one core truth, one line CTA.`, // recovered
+  'ig-carousel': `Write a carousel with 6-8 slides. Format: SLIDE [N]: [title] / [body — 1-3 sentences]. Slide 1 = hook. Final slide = CTA.`, // recovered
+  'ig-story': `Write 3 Instagram Story frames. Frame 1: bold question. Frame 2: teaching truth. Frame 3: CTA with poll suggestion.`, // recovered
+  'ig-hooks': `Write 3 completely different reel hook variations — each is the first 1-2 lines of a video. Number them 1, 2, 3.`, // recovered
+  'reel': `Write a complete reel script:\nHOOK (first 3 seconds):\nBODY (with [visual direction] in brackets):\nCTA:\nCAPTION:`, // recovered
+  'tiktok': `Write a conversational TikTok script. Opening hook, main point, closing CTA. Add [visual directions] in brackets throughout.`, // reconstructed
+  'live-pts': `Pull out 4-6 live-session talking points from this source — short, speakable bullet points Lady T could use to lead a discussion or teach from live.`, // reconstructed
+  'email': `Write a short email newsletter intro paragraph (3-5 sentences) introducing this content to the Restore & Rise list, ending with a soft transition into the rest of the email.`, // reconstructed
+  'blog': `Write a short blog post or article (400-600 words) built from this source, with a title, a few subheadings, and a closing reflection.`, // reconstructed
+  'quotes': `Pull 5 standalone quotable lines from this source suitable for quote graphics — each under 20 words, no more than one quote per idea.`, // reconstructed
+  'thread': `Write a 5-7 post Twitter/X thread built from this source. Number each post. First post is the hook.`, // reconstructed
+  'fb': `Write a Facebook post version of this content — slightly more conversational and community-oriented than the Instagram caption.`, // reconstructed
+  'linkedin': `Write a LinkedIn post version of this content, framed around leadership, faith, and purpose for a more professional audience.`, // reconstructed
+  'hashtags': `Generate a set of 15-20 relevant hashtags for this content, mixing broad faith/coaching tags with a few niche or branded ones.`, // reconstructed
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let selectedFormats = new Set();
+let queue = JSON.parse(localStorage.getItem('rr_content_queue') || '[]');
+let nextId = Number(localStorage.getItem('rr_content_next_id') || '1');
+let currentFilter = 'all';
+
+function saveQueue() {
+  localStorage.setItem('rr_content_queue', JSON.stringify(queue));
+  localStorage.setItem('rr_content_next_id', String(nextId));
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+function switchTab(tab) {
+  document.getElementById('tab-rahab').classList.toggle('active', tab === 'rahab');
+  document.getElementById('tab-zilpah').classList.toggle('active', tab === 'zilpah');
+  document.getElementById('panel-rahab').style.display = tab === 'rahab' ? 'block' : 'none';
+  document.getElementById('panel-zilpah').style.display = tab === 'zilpah' ? 'block' : 'none';
+  if (tab === 'zilpah') renderQueue();
+}
+
+function onSourceTypeChange() {
+  const val = document.getElementById('source-type').value;
+  document.getElementById('text-source').style.display = val === 'text' ? 'block' : 'none';
+  document.getElementById('audio-source').style.display = val === 'audio' ? 'block' : 'none';
+}
+
+/* ============================================================
+   FORMAT SELECTION UI
+   ============================================================ */
+function renderFormatGroups() {
+  const groups = {};
+  Object.entries(FORMAT_MAP).forEach(([key, val]) => {
+    if (!groups[val.group]) groups[val.group] = [];
+    groups[val.group].push({ key, name: val.name });
+  });
+  const container = document.getElementById('format-groups');
+  container.innerHTML = '';
+  Object.entries(groups).forEach(([groupName, formats]) => {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'format-group';
+    groupDiv.innerHTML = `<h4>${groupName}</h4><div class="format-grid"></div>`;
+    const grid = groupDiv.querySelector('.format-grid');
+    formats.forEach((f) => {
+      const chip = document.createElement('div');
+      chip.className = 'format-chip';
+      chip.textContent = f.name;
+      chip.onclick = () => {
+        if (selectedFormats.has(f.key)) { selectedFormats.delete(f.key); chip.classList.remove('selected'); }
+        else { selectedFormats.add(f.key); chip.classList.add('selected'); }
+      };
+      grid.appendChild(chip);
+    });
+    container.appendChild(groupDiv);
+  });
+}
+renderFormatGroups();
+
+function selectAllFormats() {
+  selectedFormats = new Set(Object.keys(FORMAT_MAP));
+  document.querySelectorAll('.format-chip').forEach((chip) => chip.classList.add('selected'));
+}
+
+/* ============================================================
+   AUDIO -> TRANSCRIPT (reuses the same Netlify functions as the
+   Audio Repurposing pipeline in the main Creative Suite)
+   ============================================================ */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function transcribeForRahab() {
+  const fileInput = document.getElementById('audio-file');
+  const statusEl = document.getElementById('source-status');
+  const file = fileInput.files[0];
+  if (!file) { statusEl.textContent = 'Choose an audio file first.'; return; }
+
+  statusEl.textContent = 'Uploading and starting transcription...';
+  try {
+    const base64 = await fileToBase64(file);
+    const startRes = await fetch('/.netlify/functions/transcribe-start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audioBase64: base64 }),
+    });
+    const startData = await startRes.json();
+    if (!startRes.ok) throw new Error(startData.error || 'Could not start transcription.');
+    statusEl.textContent = 'Transcribing... this can take a few minutes.';
+    pollForRahab(startData.id);
+  } catch (err) {
+    statusEl.textContent = 'Error: ' + err.message;
+  }
+}
+
+function pollForRahab(id) {
+  const statusEl = document.getElementById('source-status');
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`/.netlify/functions/transcribe-status?id=${id}`);
+      const data = await res.json();
+      if (data.status === 'completed') {
+        clearInterval(interval);
+        document.querySelector('#text-source textarea').value = data.text;
+        document.getElementById('source-type').value = 'text';
+        onSourceTypeChange();
+        statusEl.textContent = 'Transcription complete — loaded into the source box below.';
+      } else if (data.status === 'error') {
+        clearInterval(interval);
+        statusEl.textContent = 'Transcription failed: ' + data.error;
+      } else {
+        statusEl.textContent = 'Status: ' + data.status + '...';
+      }
+    } catch (err) {
+      clearInterval(interval);
+      statusEl.textContent = 'Error checking status: ' + err.message;
+    }
+  }, 4000);
+}
+
+/* ============================================================
+   GENERATE (Rahab)
+   ============================================================ */
+async function callClaude(systemPrompt, userText) {
+  const res = await fetch('/.netlify/functions/anthropic-proxy', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ systemPrompt, messages: [{ role: 'user', content: userText }] }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Generation failed.');
+  return data.text;
+}
+
+async function generateSelected() {
+  const sourceText = document.querySelector('#text-source textarea').value.trim();
+  if (!sourceText) { alert('Add source content first — paste text or transcribe audio.'); return; }
+  if (selectedFormats.size === 0) { alert('Select at least one format.'); return; }
+
+  const resultsContainer = document.getElementById('rahab-results');
+  resultsContainer.innerHTML = '';
+
+  const jobs = Array.from(selectedFormats).map(async (key) => {
+    const format = FORMAT_MAP[key];
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = `<div class="rc-head"><strong>${format.name}</strong></div><pre>Generating...</pre>`;
+    resultsContainer.appendChild(card);
+
+    try {
+      const systemPrompt = FORMAT_PROMPTS[key] + '\n' + BRAND_VOICE;
+      const output = await callClaude(systemPrompt, sourceText);
+      card.querySelector('pre').textContent = output;
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'btn small';
+      sendBtn.textContent = 'Send to Zilpah';
+      sendBtn.onclick = () => sendToQueue(format.name, format.group, output);
+      card.querySelector('.rc-head').appendChild(sendBtn);
+    } catch (err) {
+      card.querySelector('pre').textContent = 'Error: ' + err.message;
+    }
+  });
+
+  await Promise.all(jobs);
+}
+
+/* ============================================================
+   QUEUE (Zilpah)
+   ============================================================ */
+function sendToQueue(formatName, group, content) {
+  queue.push({
+    id: nextId++,
+    format: formatName,
+    group,
+    content,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  });
+  saveQueue();
+  alert(`Sent "${formatName}" to Zilpah's approval queue.`);
+}
+
+function renderQueueFilters() {
+  const groups = ['all', ...new Set(Object.values(FORMAT_MAP).map((f) => f.group))];
+  const container = document.getElementById('queue-filter');
+  container.innerHTML = '';
+  groups.forEach((g) => {
+    const btn = document.createElement('button');
+    btn.textContent = g === 'all' ? 'All' : g;
+    btn.className = currentFilter === g ? 'active' : '';
+    btn.onclick = () => { currentFilter = g; renderQueue(); };
+    container.appendChild(btn);
+  });
+}
+
+function renderQueue() {
+  renderQueueFilters();
+  const list = document.getElementById('queue-list');
+  list.innerHTML = '';
+  const filtered = queue.filter((item) => currentFilter === 'all' || item.group === currentFilter);
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nothing in the queue yet.<br>Content sent from Rahab will appear here for review.</div>`;
+    return;
+  }
+
+  filtered.slice().reverse().forEach((item) => {
+    const div = document.createElement('div');
+    div.className = 'queue-item';
+    const pillClass = item.status === 'approved' ? 'status-approved' : 'status-pending';
+    div.innerHTML = `
+      <div class="qi-tags">${item.format} &middot; ${item.group} <span class="status-pill ${pillClass}">${item.status}</span></div>
+      <textarea>${item.content}</textarea>
+      <div class="qi-actions">
+        <button class="btn small" data-action="approve">Approve</button>
+        <button class="btn secondary small" data-action="copy">Copy</button>
+        <button class="btn secondary small" data-action="remove">Remove</button>
+      </div>
+    `;
+    const textarea = div.querySelector('textarea');
+    textarea.addEventListener('change', () => {
+      item.content = textarea.value;
+      saveQueue();
+    });
+    div.querySelector('[data-action="approve"]').onclick = () => {
+      item.status = 'approved';
+      saveQueue();
+      renderQueue();
+    };
+    div.querySelector('[data-action="copy"]').onclick = () => {
+      navigator.clipboard.writeText(textarea.value);
+    };
+    div.querySelector('[data-action="remove"]').onclick = () => {
+      queue = queue.filter((q) => q.id !== item.id);
+      saveQueue();
+      renderQueue();
+    };
+    list.appendChild(div);
+  });
+}
+</script>
+</body>
+</html>
