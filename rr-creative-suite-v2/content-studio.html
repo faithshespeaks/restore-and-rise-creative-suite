@@ -281,20 +281,52 @@ async function transcribeForRahab() {
   const file = fileInput.files[0];
   if (!file) { statusEl.textContent = 'Choose an audio file first.'; return; }
 
-  statusEl.textContent = 'Uploading and starting transcription...';
+  const SMALL_FILE_LIMIT = 4 * 1024 * 1024; // ~4MB, safely under Netlify's function limit
+
   try {
-    const base64 = await fileToBase64(file);
-    const startRes = await fetch('/.netlify/functions/transcribe-start', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audioBase64: base64 }),
-    });
-    const startData = await startRes.json();
-    if (!startRes.ok) throw new Error(startData.error || 'Could not start transcription.');
-    statusEl.textContent = 'Transcribing... this can take a few minutes.';
-    pollForRahab(startData.id);
+    let transcriptId;
+
+    if (file.size <= SMALL_FILE_LIMIT) {
+      // Small file: send through the Netlify function as before.
+      statusEl.textContent = 'Uploading and starting transcription...';
+      const base64 = await fileToBase64(file);
+      const startRes = await fetch('/.netlify/functions/transcribe-start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioBase64: base64 }),
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error || 'Could not start transcription.');
+      transcriptId = startData.id;
+    } else {
+      // Larger file: upload directly to AssemblyAI from the browser, so the
+      // file itself never has to pass through Netlify's ~4.5MB function limit.
+      statusEl.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(1)} MB directly to the transcription service...`;
+      const tokenRes = await fetch('/.netlify/functions/get-assemblyai-token');
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error || 'Could not retrieve upload access.');
+
+      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', {
+        method: 'POST',
+        headers: { authorization: tokenData.token, 'content-type': 'application/octet-stream' },
+        body: file,
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.error || 'Direct upload to AssemblyAI failed.');
+
+      statusEl.textContent = 'Upload complete. Starting transcription...';
+      const startRes = await fetch('/.netlify/functions/transcribe-start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioUrl: uploadData.upload_url }),
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error || 'Could not start transcription.');
+      transcriptId = startData.id;
+    }
+
+    statusEl.textContent = 'Transcribing... this can take a few minutes for longer audio.';
+    pollForRahab(transcriptId);
   } catch (err) {
     statusEl.textContent = 'Error: ' + err.message;
-  }
 }
 
 function pollForRahab(id) {
