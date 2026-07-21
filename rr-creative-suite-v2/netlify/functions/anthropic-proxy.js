@@ -35,7 +35,8 @@ exports.handler = async (event) => {
     const data = await response.json();
 
     if (!response.ok) {
-      return { statusCode: response.status, body: JSON.stringify(data) };
+      const message = (data && data.error && data.error.message) ? data.error.message : JSON.stringify(data);
+      return { statusCode: response.status, body: JSON.stringify({ error: message }) };
     }
 
     const text = (data.content || [])
