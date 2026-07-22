@@ -204,7 +204,7 @@ const FORMAT_MAP = {
 const FORMAT_PROMPTS = {
   'ig-long': `Write a long-form Instagram caption with a strong hook, teaching middle, and warm CTA. 150-250 words. Lady T's voice. Use "sister" or "woman of God." No pricing. No "hustle" or "grind".`, // recovered
   'ig-short': `Write a short punchy Instagram caption — 3 to 5 lines. Hook, one core truth, one line CTA.`, // recovered
-  'ig-carousel': `Write a carousel with 6-8 slides. Format: SLIDE [N]: [title] / [body — 1-3 sentences]. Slide 1 = hook. Final slide = CTA.`, // recovered
+  'ig-carousel': `Write a carousel with 6-8 slides. Format each slide on its own line, exactly like this: SLIDE [N]: [title] / [body — 1-3 sentences]. Slide 1 = hook. Final slide = CTA. Do not use any markdown formatting (no asterisks, no bold, no italics) — plain text only.`, // recovered, tightened for reliable parsing
   'ig-story': `Write 3 Instagram Story frames. Frame 1: bold question. Frame 2: teaching truth. Frame 3: CTA with poll suggestion.`, // recovered
   'ig-hooks': `Write 3 completely different reel hook variations — each is the first 1-2 lines of a video. Number them 1, 2, 3.`, // recovered
   'reel': `Write a complete reel script:\nHOOK (first 3 seconds):\nBODY (with [visual direction] in brackets):\nCTA:\nCAPTION:`, // recovered
@@ -212,7 +212,7 @@ const FORMAT_PROMPTS = {
   'live-pts': `Pull out 4-6 live-session talking points from this source — short, speakable bullet points Lady T could use to lead a discussion or teach from live.`, // reconstructed
   'email': `Write a short email newsletter intro paragraph (3-5 sentences) introducing this content to the Restore & Rise list, ending with a soft transition into the rest of the email.`, // reconstructed
   'blog': `Write a short blog post or article (400-600 words) built from this source, with a title, a few subheadings, and a closing reflection.`, // reconstructed
-  'quotes': `Pull 5 standalone quotable lines from this source suitable for quote graphics — each under 20 words, no more than one quote per idea.`, // reconstructed
+  'quotes': `Pull 5 standalone quotable lines from this source suitable for quote graphics — each under 20 words, no more than one quote per idea. List them as a numbered list, each quote in plain quotation marks. Do not use any markdown formatting (no asterisks, no bold, no italics) — plain text only.`, // reconstructed, tightened for reliable parsing
   'thread': `Write a 5-7 post Twitter/X thread built from this source. Number each post. First post is the hook.`, // reconstructed
   'fb': `Write a Facebook post version of this content — slightly more conversational and community-oriented than the Instagram caption.`, // reconstructed
   'linkedin': `Write a LinkedIn post version of this content, framed around leadership, faith, and purpose for a more professional audience.`, // reconstructed
@@ -538,24 +538,44 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   return lines.length;
 }
 
-// Parse "1. "quote text"" style output from the 5 Quote Graphics format
-function parseQuotes(text) {
-  const matches = [...text.matchAll(/\d+\.\s*"([^"]+)"/g)].map((m) => m[1]);
-  if (matches.length > 0) return matches;
-  // Fallback: split on --- dividers and strip numbering/quotes
-  return text.split('---').map((chunk) => chunk.replace(/^\s*\d+\.\s*/, '').replace(/"/g, '').trim()).filter(Boolean);
+// Strip markdown emphasis (**bold**, *italic*) that AI output sometimes
+// wraps around quotes/titles, which previously broke the parsers below.
+function stripMarkdown(text) {
+  return text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^-+\s*|\s*-+$/gm, '').trim();
 }
 
-// Parse "SLIDE [N]: [title] / [body]" style output from Instagram Carousel
+// Parse "1. "quote text"" style output from the 5 Quote Graphics format.
+// Handles markdown emphasis around the quote and numbering as "1." or "1)".
+function parseQuotes(text) {
+  const cleaned = stripMarkdown(text);
+
+  // Primary: numbered quote in quotation marks, e.g. 1. "quote here"
+  let matches = [...cleaned.matchAll(/\d+[\.\)]\s*"([^"]+)"/g)].map((m) => m[1].trim());
+  if (matches.length > 0) return matches;
+
+  // Fallback: numbered line without quotation marks
+  matches = [...cleaned.matchAll(/\d+[\.\)]\s*([^\n]+)/g)].map((m) => m[1].replace(/"/g, '').trim()).filter(Boolean);
+  if (matches.length > 0) return matches;
+
+  // Last resort: split on --- dividers
+  return cleaned.split('---').map((chunk) => chunk.replace(/^\s*\d+[\.\)]\s*/, '').replace(/"/g, '').trim()).filter(Boolean);
+}
+
+// Parse "SLIDE [N]: [title] / [body]" style output from Instagram Carousel.
+// Uses a lookahead so it correctly splits slides even when the AI writes
+// them as one continuous block without a line break between each slide,
+// and strips markdown emphasis from titles/bodies.
 function parseSlides(text) {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const cleaned = stripMarkdown(text);
+  const regex = /SLIDE\s*\[?(\d+)\]?\s*:\s*(.*?)\s*\/\s*([\s\S]*?)(?=SLIDE\s*\[?\d+\]?\s*:|$)/gi;
   const slides = [];
-  lines.forEach((line) => {
-    const match = line.match(/SLIDE\s*\[?(\d+)\]?\s*:\s*(.*?)\s*\/\s*(.*)/i);
-    if (match) {
-      slides.push({ number: match[1], title: match[2], body: match[3] });
+  let match;
+  while ((match = regex.exec(cleaned)) !== null) {
+    const body = match[3].trim();
+    if (match[2].trim() || body) {
+      slides.push({ number: match[1].trim(), title: match[2].trim(), body });
     }
-  });
+  }
   return slides;
 }
 
